@@ -2,3 +2,6 @@
 name = "rust-chip8"
 version = "0.1.0"
 authors = ["Nick Massey <nick.massey@saputo.com>"]
+[dependencies]
+docopt = "0.6"
+rustc-serialize = "0.3"

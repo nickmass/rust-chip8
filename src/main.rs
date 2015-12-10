@@ -1,4 +1,30 @@
+extern crate rustc_serialize;
+extern crate docopt;
+
+use docopt::Docopt;
+
+const USAGE: &'static str = "
+rust-chip8
+
+Usage:
+    rust-chip8 <file>
+    rust-chip8 (-h | --help)
+
+Options:
+    -h --help   Show this screen
+";
+
+
+#[derive(Debug, RustcDecodable)]
+struct Args {
+    arg_file: String,
+}
+
 fn main() {
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.decode())
+        .unwrap_or_else(|e| e.exit());
+
     let mut cpu = Cpu::new();
     cpu.run();
 }
