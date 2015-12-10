@@ -60,6 +60,148 @@ impl Cpu {
         }
     }
 
+    fn clear_screen(&mut self) {
+    }
+
+    fn skip_if(&mut self, reg: u8, value: u8) {
+        if self.regs.data[reg as usize] == value {
+            self.regs.address = self.regs.address + 2;
+        }
+    }
+
+    fn skip_if_not(&mut self, reg: u8, value: u8) {
+        if self.regs.data[reg as usize] != value {
+            self.regs.address = self.regs.address + 2;
+        }
+    }
+
+    fn skip_if_reg(&mut self, reg_a: u8, reg_b: u8) {
+        if self.regs.data[reg_a as usize] == self.regs.data[reg_b as usize] {
+            self.regs.address = self.regs.address + 2;
+        }
+    }
+
+    fn set(&mut self, reg: u8, value: u8) {
+        self.regs.data[reg as usize] = value;
+    }
+
+    fn add(&mut self, reg: u8, value: u8) {
+        self.regs.data[reg as usize] = self.regs.data[reg as usize] + value;
+    }
+
+    fn set_reg(&mut self, reg_a: u8, reg_b: u8) {
+        self.regs.data[reg_a as usize] = self.regs.data[reg_b as usize];
+    }
+
+    fn or_reg(&mut self, reg_a: u8, reg_b: u8) {
+        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] | self.regs.data[reg_b as usize];
+    }
+
+    fn and_reg(&mut self, reg_a: u8, reg_b: u8) {
+        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] & self.regs.data[reg_b as usize];
+    }
+
+    fn xor_reg(&mut self, reg_a: u8, reg_b: u8) {
+        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] ^ self.regs.data[reg_b as usize];
+    }
+
+    fn add_reg(&mut self, reg_a: u8, reg_b: u8) {
+        if (reg_a as u16) + (reg_b as u16) > 255 {
+            self.regs.data[0xF] = 1;
+        } else {
+            self.regs.data[0xF] = 0;
+        }
+    }
+
+    fn cmp_reg(&mut self, reg_a: u8, reg_b: u8) {
+        if (reg_a as i16) - (reg_b as i16) < 0 {
+            self.regs.data[0xF] = 1;
+        } else {
+            self.regs.data[0xF] = 0;
+        }
+    }
+
+    fn shift_right_reg(&mut self, reg_a: u8, reg_b: u8) {
+        self.regs.data[0xF] =  self.regs.data[reg_a as usize] & 1;
+        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] >> 1;
+    }
+
+    fn sub_reg(&mut self, reg_a: u8, reg_b: u8) {
+        
+    }
+
+    fn shift_left_reg(&mut self, reg_a: u8, reg_b: u8) {
+        let carry = self.regs.data[reg_a as usize] & 0x80;
+        if carry != 0 {
+            self.regs.data[0xF] = 1;
+        } else {
+            self.regs.data[0xF] = 0;
+        }
+
+        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] << 1;
+    }
+
+    fn skip_if_not_reg(&mut self, reg_a: u8, reg_b: u8) {
+        if self.regs.data[reg_a as usize] != self.regs.data[reg_b as usize] {
+            self.regs.address = self.regs.address + 2;
+        }
+    }
+
+    fn set_index(&mut self, value: u16) {
+        self.regs.index = value;
+    }
+
+    fn jump_offset(&mut self, addr: u16) {
+        self.regs.address = self.regs.data[0] as u16 + addr;
+    }
+
+    fn random(&mut self, reg: u8, value: u8) {
+        self.regs.data[reg as usize] = 4 ^ value;
+    }
+
+    fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
+    }
+
+    fn skip_if_key(&mut self, reg: u8) {
+    }
+
+    fn skip_if_not_key(&mut self, reg: u8) {
+    }
+
+    fn set_from_delay_timer(&mut self, reg: u8) {
+    }
+
+    fn wait_for_key(&mut self, reg: u8) {
+    }
+
+    fn set_delay_timer(&mut self, reg: u8) {
+    }
+
+    fn set_sound_timer(&mut self, reg: u8) {
+    }
+
+    fn add_to_index(&mut self, reg: u8) {
+        self.regs.index = self.regs.index + self.regs.data[reg as usize] as u16;
+    }
+
+    fn set_index_to_character(&mut self, reg: u8) {
+    }
+
+    fn store_bcd(&mut self, reg: u8) {
+    }
+
+    fn store_to_index(&mut self, reg: u8) {
+        for n in 0..reg {
+            self.mem.write(self.regs.index + n as u16, self.regs.data[(reg + n) as usize]);
+        }
+    }
+
+    fn fill_from_index(&mut self, reg: u8) {
+        for n in 0..reg {
+            self.regs.data[(reg + n) as usize] = self.mem.read(self.regs.index + n as u16);
+        }
+    }
+
     fn read_opcode(&mut self) -> (u8, u8, u8, u8) {
         let word = self.mem.read_word(self.regs.address);
         self.regs.address = self.regs.address + 2;
