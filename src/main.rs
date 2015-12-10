@@ -2,6 +2,8 @@ extern crate rustc_serialize;
 extern crate docopt;
 
 use docopt::Docopt;
+use std::fs::File;
+use std::io::Read;
 
 const USAGE: &'static str = "
 rust-chip8
@@ -25,7 +27,10 @@ fn main() {
         .and_then(|d| d.decode())
         .unwrap_or_else(|e| e.exit());
 
-    let mut cpu = Cpu::new();
+    let mut f = File::open(args.arg_file).unwrap();
+    let mut rom: Vec<u8> = Vec::new();
+    let _ = f.take(0x4000 - 0x200).read_to_end(&mut rom).unwrap();
+    let mut cpu = Cpu::new(rom);
     cpu.run();
 }
 
@@ -36,10 +41,10 @@ struct Cpu {
 }
 
 impl Cpu {
-    fn new() -> Cpu {
+    fn new(rom: Vec<u8>) -> Cpu {
         Cpu {
             disp: Display::new(),
-            mem: Memory::new(),
+            mem: Memory::new_with_rom(rom),
             regs: Registers::new(),
         }
     }
@@ -334,7 +339,7 @@ impl Registers {
     fn new() -> Registers {
         Registers {
             data: [0; 16],
-            address: 0,
+            address: 0x200,
             stack: 0xEA0,
             index: 0,
         }
@@ -348,9 +353,21 @@ struct Memory {
 impl Memory {
     fn new() -> Memory {
         Memory {
-            bytes: [1; 0x4000]
+            bytes: [0; 0x4000]
         }
     }
+    
+    fn new_with_rom(rom: Vec<u8>) -> Memory {
+        let mut bytes = [0; 0x4000];
+        for x in 0..rom.len() {
+            bytes[x + 0x200] = rom[x];
+        }
+
+        Memory {
+            bytes: bytes,
+        }
+    }
+
 
     fn read(&self, addr: u16) -> u8 {
         let safe_addr = addr & 0xFFF;
