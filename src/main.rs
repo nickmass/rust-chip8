@@ -4,6 +4,7 @@ fn main() {
 }
 
 struct Cpu {
+    disp: Display,
     mem: Memory,
     regs: Registers,
 }
@@ -11,6 +12,7 @@ struct Cpu {
 impl Cpu {
     fn new() -> Cpu {
         Cpu {
+            disp: Display::new(),
             mem: Memory::new(),
             regs: Registers::new(),
         }
@@ -61,6 +63,7 @@ impl Cpu {
     }
 
     fn clear_screen(&mut self) {
+        self.disp.clear_screen();
     }
 
     fn skip_if(&mut self, reg: u8, value: u8) {
@@ -257,6 +260,24 @@ impl Cpu {
         let b1 = b as u16;
         let c1 = c as u16;
         (((a1 & 0xF) << 8) | ((b1 & 0xF) << 4) | (c1 & 0xF)) as u16
+    }
+}
+
+struct Display {
+    screen: [u8;2048],
+}
+
+impl Display {
+    fn new() -> Display {
+        Display {
+            screen: [0; 2048]
+        }
+    }
+
+    fn clear_screen(&mut self) {
+        for n in 0..2048 {
+            self.screen[n] = 0;
+        }
     }
 }
 
