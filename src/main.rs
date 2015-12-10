@@ -52,7 +52,7 @@ impl Cpu {
                 (0xF, a, 1, 8) => self.set_sound_timer(a),
                 (0xF, a, 1, 0xE) => self.add_to_index(a),
                 (0xF, a, 2, 9) => self.set_index_to_character(a),
-                (0xF, a, 3, 3) => self.stored_bcd(a),
+                (0xF, a, 3, 3) => self.store_bcd(a),
                 (0xF, a, 5, 5) => self.store_to_index(a),
                 (0xF, a, 6, 5) => self.fill_from_index(a),
                 _ => {},
@@ -61,9 +61,9 @@ impl Cpu {
     }
 
     fn read_opcode(&mut self) -> (u8, u8, u8, u8) {
-        let addr = self.regs.address;
+        let word = self.mem.read_word(self.regs.address);
         self.regs.address = self.regs.address + 2;
-        self.mem.read_opcode(addr)
+        ((word & 0xF0 >> 4) as u8, (word & 0xF) as u8, (word & 0xF000 >> 12) as u8, (word & 0xF00 >> 8) as u8)
     }
     
     fn jump(&mut self, address: u16) {
@@ -154,11 +154,6 @@ impl Memory {
 
     fn read_word(&self, addr: u16) -> u16 {
         (self.read(addr) as u16) | ((self.read(addr + 1) as u16) << 8)
-    }
-
-    fn read_opcode(&self, addr: u16) -> (u8,u8,u8,u8) {
-        let word = self.read_word(addr);
-        ((word & 0xF0 >> 4) as u8, (word & 0xF) as u8, (word & 0xF000 >> 12) as u8, (word & 0xF00 >> 8) as u8)
     }
 
     fn write(&mut self, addr: u16, value: u8) {
