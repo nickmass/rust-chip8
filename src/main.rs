@@ -163,6 +163,9 @@ impl Cpu {
     }
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
+        for n in 0..rows {
+            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.data[reg_a as usize], self.regs.data[(reg_b + n) as usize])
+        }
     }
 
     fn skip_if_key(&mut self, reg: u8) {
@@ -277,6 +280,19 @@ impl Display {
     fn clear_screen(&mut self) {
         for n in 0..2048 {
             self.screen[n] = 0;
+        }
+    }
+
+    fn toggle_pixel(&mut self, pixel: u8,  x: u8, y: u8) {
+        let real_x = x & 0x3F;
+        let real_y = y & 0x1F;
+        let offset = ((real_y * 64) + real_x) as usize;
+        self.screen[offset] = pixel ^ self.screen[offset];
+    }
+
+    fn draw_line(&mut self, line: u8, x: u8, y: u8) {
+        for n in 0..8 {
+            self.toggle_pixel((line >> n) & 1, x + n, y);
         }
     }
 }
