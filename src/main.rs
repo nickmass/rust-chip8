@@ -29,7 +29,7 @@ fn main() {
 
     let mut f = File::open(args.arg_file).unwrap();
     let mut rom: Vec<u8> = Vec::new();
-    let _ = f.take(0x4000 - 0x200).read_to_end(&mut rom).unwrap();
+    let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
     let mut cpu = Cpu::new(rom);
     cpu.run();
 }
@@ -347,18 +347,18 @@ impl Registers {
 }
 
 struct Memory {
-    bytes: [u8;0x4000],
+    bytes: [u8;0x1000],
 }
 
 impl Memory {
     fn new() -> Memory {
         Memory {
-            bytes: [0; 0x4000]
+            bytes: [0; 0x1000]
         }
     }
     
     fn new_with_rom(rom: Vec<u8>) -> Memory {
-        let mut bytes = [0; 0x4000];
+        let mut bytes = [0; 0x1000];
         for x in 0..rom.len() {
             bytes[x + 0x200] = rom[x];
         }
@@ -380,7 +380,7 @@ impl Memory {
 
     fn write(&mut self, addr: u16, value: u8) {
         let safe_addr = addr & 0xFFF;
-        self.bytes[addr as usize] = value;
+        self.bytes[safe_addr as usize] = value;
     }
 
     fn write_word(&mut self, addr: u16, value: u16) {
