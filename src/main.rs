@@ -50,6 +50,7 @@ impl Cpu {
     }
 
     fn run(&mut self) {
+        let mut draw_countdown = 500;
         loop {
             let opcode  = self.read_opcode();
             match opcode {
@@ -90,6 +91,11 @@ impl Cpu {
                 (0xF, a, 6, 5) => self.fill_from_index(a),
                 _ => {},
             };
+
+            draw_countdown = draw_countdown - 1;
+            if draw_countdown == 0 {
+                self.disp.render();
+            }
         }
     }
 
@@ -324,6 +330,15 @@ impl Display {
     fn draw_line(&mut self, line: u8, x: u8, y: u8) {
         for n in 0..8 {
             self.toggle_pixel((line >> n) & 1, x + n, y);
+        }
+    }
+
+    fn render(&self) {
+        for n in 0..2048 {
+            if n % 64 == 0 {
+                print!("\n");
+            }
+            print!("{0}", self.screen[n]);
         }
     }
 }
