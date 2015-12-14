@@ -53,9 +53,9 @@ impl Cpu {
         let mut draw_countdown = 500;
         loop {
             let opcode  = self.read_opcode();
-            if draw_countdown > 475 {
-                println!("{:?}", opcode);
-            }
+            //if draw_countdown > 475 {
+            //    println!("{:?}", opcode);
+            //}
             match opcode {
                 (0, 0, 0xE, 0) => self.clear_screen(), //Clear screen
                 (0, 0, 0xE, 0xE) => self.ret(), //ret
@@ -331,15 +331,15 @@ impl Display {
     }
 
     fn toggle_pixel(&mut self, pixel: u8,  x: u8, y: u8) {
-        let real_x = x & 0x3F;
-        let real_y = y & 0x1F;
+        let real_x = (x & 0x3F) as u16;
+        let real_y = (y & 0x1F) as u16;
         let offset = ((real_y * 64) + real_x) as usize;
         self.screen[offset] = pixel ^ self.screen[offset];
     }
 
     fn draw_line(&mut self, line: u8, x: u8, y: u8) {
         for n in 0..8 {
-            self.toggle_pixel((line >> n) & 1, x + n, y);
+            self.toggle_pixel(((line << n) & 0x80) >> 7, x + n, y);
         }
     }
 
