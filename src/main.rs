@@ -53,6 +53,9 @@ impl Cpu {
         let mut draw_countdown = 500;
         loop {
             let opcode  = self.read_opcode();
+            if draw_countdown > 475 {
+                println!("{:?}", opcode);
+            }
             match opcode {
                 (0, 0, 0xE, 0) => self.clear_screen(), //Clear screen
                 (0, 0, 0xE, 0xE) => self.ret(), //ret
@@ -94,7 +97,7 @@ impl Cpu {
 
             draw_countdown = draw_countdown - 1;
             if draw_countdown == 0 {
-                self.disp.render();
+               self.disp.render();
             }
         }
     }
@@ -201,7 +204,7 @@ impl Cpu {
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
         for n in 0..rows {
-            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.data[reg_a as usize], self.regs.data[(reg_b + n) as usize])
+            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.data[reg_a as usize], self.regs.data[reg_b as usize] + n);
         }
     }
 
@@ -247,8 +250,15 @@ impl Cpu {
 
     fn read_opcode(&mut self) -> (u8, u8, u8, u8) {
         let word = self.mem.read_word(self.regs.address);
-        self.regs.address = self.regs.address + 2;
-        ((word & 0xF0 >> 4) as u8, (word & 0xF) as u8, (word & 0xF000 >> 12) as u8, (word & 0xF00 >> 8) as u8)
+
+        self.regs.address += 2;
+
+        let nib1 = word & 0xF;
+        let nib2 = (word & 0xF0) >> 4;
+        let nib3 = (word & 0xF00) >> 8;
+        let nib4 = (word & 0xF000) >> 12;
+
+        (nib4 as u8, nib3 as u8, nib2 as u8, nib1 as u8)
     }
     
     fn jump(&mut self, address: u16) {
@@ -390,7 +400,7 @@ impl Memory {
     }
 
     fn read_word(&self, addr: u16) -> u16 {
-        (self.read(addr) as u16) | ((self.read(addr + 1) as u16) << 8)
+        (self.read(addr + 1) as u16) | ((self.read(addr) as u16) << 8)
     }
 
     fn write(&mut self, addr: u16, value: u8) {
