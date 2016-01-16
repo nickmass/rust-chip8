@@ -30,22 +30,26 @@ fn main() {
     let mut f = File::open(args.arg_file).unwrap();
     let mut rom: Vec<u8> = Vec::new();
     let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
-    let mut cpu = Cpu::new(rom);
-    cpu.run();
+    let mut cpu = Cpu::<Chip8ConsoleRenderer>::new(rom);
+    loop {
+        cpu.run();
+    }
 }
 
-struct Cpu {
+struct Cpu<T: Chip8Renderer> {
     disp: Display,
     mem: Memory,
     regs: Registers,
+    renderer: T,
 }
 
-impl Cpu {
-    fn new(rom: Vec<u8>) -> Cpu {
+impl<T: Chip8Renderer> Cpu<T> {
+    fn new(rom: Vec<u8>) -> Cpu<Chip8ConsoleRenderer> {
         Cpu {
             disp: Display::new(),
             mem: Memory::new_with_rom(rom),
             regs: Registers::new(),
+            renderer: Chip8ConsoleRenderer::new(),
         }
     }
 
@@ -53,9 +57,6 @@ impl Cpu {
         let mut draw_countdown = 500;
         loop {
             let opcode  = self.read_opcode();
-            //if draw_countdown > 475 {
-            //    println!("{:?}", opcode);
-            //}
             match opcode {
                 (0, 0, 0xE, 0) => self.clear_screen(), //Clear screen
                 (0, 0, 0xE, 0xE) => self.ret(), //ret
@@ -97,7 +98,8 @@ impl Cpu {
 
             draw_countdown = draw_countdown - 1;
             if draw_countdown == 0 {
-               self.disp.render();
+               self.renderer.render(&self.disp.screen);
+               break;
             }
         }
     }
@@ -343,15 +345,6 @@ impl Display {
             self.toggle_pixel(((line << n) & 0x80) >> 7, x + n, y);
         }
     }
-
-    fn render(&self) {
-        for n in 0..2048 {
-            if n % 64 == 0 {
-                print!("\n");
-            }
-            print!("{0}", self.screen[n]);
-        }
-    }
 }
 
 struct Registers {
@@ -435,5 +428,39 @@ impl Memory {
     fn write_word(&mut self, addr: u16, value: u16) {
         self.write(addr, (value & 0xFF) as u8);
         self.write(addr + 1, ((value >> 8) & 0xFF) as u8);
+    }
+}
+
+trait Chip8Renderer {
+    fn render(&mut self, &[u8; 2048]);
+}
+
+struct Chip8ConsoleRenderer;
+
+impl Chip8ConsoleRenderer {
+    fn new() -> Chip8ConsoleRenderer {
+        Chip8ConsoleRenderer
+    }
+}
+
+use std::io::{self, Write};
+
+impl Chip8Renderer for Chip8ConsoleRenderer {
+    fn render(&mut self, screen: &[u8; 2048]) {
+        let mut s = String::from("\x1b[2J\x1b[1;1H");
+        for n in 0..2048 {
+            if n % 64 == 0 {
+                s.push_str("\n");
+            }
+            s.push_str(&format!("{0}", screen[n]));
+        }
+
+        let stdout = io::stdout();
+        let mut handle = stdout.lock();
+
+        let _ = handle.write_all(s.as_bytes());
+        let _ = handle.flush();
+
+        ::std::thread::sleep_ms(16);
     }
 }
