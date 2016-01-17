@@ -121,19 +121,19 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn skip_if(&mut self, reg: u8, value: u8) {
         if self.regs.get_data(reg) == value {
-            self.regs.address += 2;
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
     }
 
     fn skip_if_not(&mut self, reg: u8, value: u8) {
         if self.regs.get_data(reg) != value {
-            self.regs.address += 2;
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
     }
 
     fn skip_if_reg(&mut self, reg_a: u8, reg_b: u8) {
         if self.regs.get_data(reg_a) == self.regs.get_data(reg_b) {
-            self.regs.address += 2;
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
     }
 
@@ -143,7 +143,7 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn add(&mut self, reg: u8, value: u8) {
         let reg_val = self.regs.get_data(reg);
-        self.regs.set_data(reg, reg_val + value);
+        self.regs.set_data(reg, reg_val.wrapping_add(value));
     }
 
     fn set_reg(&mut self, reg_a: u8, reg_b: u8) {
@@ -178,7 +178,7 @@ impl<T: Chip8Renderer> Cpu<T> {
             self.regs.set_data(0xF, 0);
         }
         
-        self.regs.set_data(reg_a, val_left + val_right);
+        self.regs.set_data(reg_a, val_left.wrapping_add(val_right));
     }
 
     fn cmp_reg(&mut self, reg_a: u8, reg_b: u8) {
@@ -194,7 +194,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     fn shift_right_reg(&mut self, reg_a: u8, _: u8) {
         let val = self.regs.get_data(reg_a);
         self.regs.set_data(0xF, val & 1);
-        self.regs.set_data(reg_a, val >> 1);
+        self.regs.set_data(reg_a, val.wrapping_shr(1));
     }
 
     fn sub_reg(&mut self, reg_a: u8, reg_b: u8) {
@@ -206,7 +206,7 @@ impl<T: Chip8Renderer> Cpu<T> {
             self.regs.set_data(0xF, 0);
         }
 
-        self.regs.set_data(reg_a, val_left - val_right);
+        self.regs.set_data(reg_a, val_left.wrapping_sub(val_right));
     }
 
     fn shift_left_reg(&mut self, reg_a: u8, _: u8) {
@@ -218,12 +218,12 @@ impl<T: Chip8Renderer> Cpu<T> {
             self.regs.set_data(0xF, 0);
         }
 
-        self.regs.set_data(reg_a, val << 1);
+        self.regs.set_data(reg_a, val.wrapping_shl(1));
     }
 
     fn skip_if_not_reg(&mut self, reg_a: u8, reg_b: u8) {
         if self.regs.get_data(reg_a) != self.regs.get_data(reg_b) {
-            self.regs.address += 2;
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
     }
 
@@ -232,7 +232,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn jump_offset(&mut self, addr: u16) {
-        self.regs.address = self.regs.get_data(0) as u16 + addr;
+        self.regs.address = (self.regs.get_data(0) as u16).wrapping_add(addr);
     }
 
     fn random(&mut self, reg: u8, value: u8) {
@@ -241,7 +241,7 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
         for n in 0..rows {
-            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.get_data(reg_a), self.regs.get_data(reg_b) + n);
+            self.disp.draw_line(self.mem.read(self.regs.index.wrapping_add(n as u16)), self.regs.get_data(reg_a), self.regs.get_data(reg_b).wrapping_add(n));
         }
     }
 
@@ -249,6 +249,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn skip_if_not_key(&mut self, _: u8) {
+        self.regs.address = self.regs.address.wrapping_add(2);
     }
 
     fn set_from_delay_timer(&mut self, reg: u8) {
@@ -268,7 +269,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn add_to_index(&mut self, reg: u8) {
-        self.regs.index = self.regs.index + self.regs.get_data(reg) as u16;
+        self.regs.index = self.regs.index.wrapping_add(self.regs.get_data(reg) as u16);
     }
 
     fn set_index_to_character(&mut self, reg: u8) {
@@ -280,21 +281,21 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn store_to_index(&mut self, reg: u8) {
         for n in 0..reg {
-            self.mem.write(self.regs.index + n as u16, self.regs.get_data(reg + n));
+            self.mem.write(self.regs.index.wrapping_add(n as u16), self.regs.get_data(reg.wrapping_add(n)));
         }
     }
 
     fn fill_from_index(&mut self, reg: u8) {
         for n in 0..reg {
-            let val = self.mem.read(self.regs.index + n as u16);
-            self.regs.set_data(reg + n, val);
+            let val = self.mem.read(self.regs.index.wrapping_add(n as u16));
+            self.regs.set_data(reg.wrapping_add(n), val);
         }
     }
 
     fn read_opcode(&mut self) -> (u8, u8, u8, u8) {
         let word = self.mem.read_word(self.regs.address);
 
-        self.regs.address += 2;
+        self.regs.address = self.regs.address.wrapping_add(2);
 
         let nib1 = word & 0xF;
         let nib2 = (word & 0xF0) >> 4;
@@ -320,7 +321,7 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn push(&mut self, value: u8) {
         self.mem.write(self.regs.stack, value);
-        self.regs.stack += 1;
+        self.regs.stack = self.regs.stack.wrapping_add(1);
     }
 
     fn push_addr(&mut self, address: u16) {
@@ -331,7 +332,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn pop(&mut self) -> u8 {
-        self.regs.stack -= 1;
+        self.regs.stack = self.regs.stack.wrapping_sub(1);
         self.mem.read(self.regs.stack)
     }
 
@@ -469,7 +470,7 @@ impl Memory {
     }
 
     fn read_word(&self, addr: u16) -> u16 {
-        (self.read(addr + 1) as u16) | ((self.read(addr) as u16) << 8)
+        (self.read(addr.wrapping_add(1)) as u16) | ((self.read(addr) as u16) << 8)
     }
 
     fn write(&mut self, addr: u16, value: u8) {
