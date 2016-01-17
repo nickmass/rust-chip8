@@ -382,7 +382,7 @@ impl Display {
         let real_x = (x & 0x3F) as u16;
         let real_y = (y & 0x1F) as u16;
         let offset = ((real_y * 64) + real_x) as usize;
-        let flipped = self.screen[offset] == 1 && pixel != 0;
+        let flipped = self.screen[offset] != 0 && pixel != 0;
         self.screen[offset] = pixel ^ self.screen[offset];
         flipped
     }
