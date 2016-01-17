@@ -39,81 +39,91 @@ fn main() {
     let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
     let mut cpu = Cpu::<GliumRenderer>::new(rom);
     loop {
-        cpu.run();
+        if cpu.run() { break; }
     }
 }
 
-struct Cpu<T: Chip8Renderer> {
+struct Cpu<T: Chip8System> {
     disp: Display,
     mem: Memory,
     regs: Registers,
-    renderer: T,
+    system: T,
+    wait_on_input: Option<u8>,
 }
 
 mod chip_gl;
 use self::chip_gl::*;
 
-impl<T: Chip8Renderer> Cpu<T> {
+impl<T: Chip8System> Cpu<T> {
     fn new(rom: Vec<u8>) -> Cpu<GliumRenderer> {
         Cpu {
             disp: Display::new(),
             mem: Memory::new_with_rom(rom),
             regs: Registers::new(),
-            renderer: GliumRenderer::new(),
+            system: GliumRenderer::new(),
+            wait_on_input: None,
         }
     }
 
-    fn run(&mut self) {
+    fn run(&mut self) -> bool {
         let mut draw_countdown = 60000; //No idea
         loop {
-            let opcode  = self.read_opcode();
-            match opcode {
-                (0, 0, 0xE, 0) => self.clear_screen(), //Clear screen
-                (0, 0, 0xE, 0xE) => self.ret(), //ret
-                (0, _, _, _) => {}, //RCA program
-                (1, a, b, c) => self.jump(Self::join_three(a,b,c)),
-                (2, a, b, c) => self.sub(Self::join_three(a,b,c)),
-                (3, a, b, c) => self.skip_if(a, Self::join_two(b,c)),
-                (4, a, b, c) => self.skip_if_not(a, Self::join_two(b,c)),
-                (5, a, b, 0) => self.skip_if_reg(a, b),
-                (6, a, b, c) => self.set(a, Self::join_two(b,c)),
-                (7, a, b, c) => self.add(a, Self::join_two(b,c)),
-                (8, a, b, 0) => self.set_reg(a, b),
-                (8, a, b, 1) => self.or_reg(a, b),
-                (8, a, b, 2) => self.and_reg(a,b),
-                (8, a, b, 3) => self.xor_reg(a,b),
-                (8, a, b, 4) => self.add_reg(a,b),
-                (8, a, b, 5) => self.cmp_reg(a,b),
-                (8, a, b, 6) => self.shift_right_reg(a,b),
-                (8, a, b, 7) => self.sub_reg(a,b),
-                (8, a, b, 0xE) => self.shift_left_reg(a,b),
-                (9, a, b, 0) => self.skip_if_not_reg(a,b),
-                (0xA, a, b, c) => self.set_index(Self::join_three(a,b,c)),
-                (0xB, a, b, c) => self.jump_offset(Self::join_three(a,b,c)),
-                (0xC, a, b, c) => self.random(a, Self::join_two(b,c)),
-                (0xD, a, b, c) => self.draw_sprite(a,b,c),
-                (0xE, a, 9, 0xE) => self.skip_if_key(a),
-                (0xE, a, 0xA, 1) => self.skip_if_not_key(a),
-                (0xF, a, 0, 7) => self.set_from_delay_timer(a),
-                (0xF, a, 0, 0xA) => self.wait_for_key(a),
-                (0xF, a, 1, 5) => self.set_delay_timer(a),
-                (0xF, a, 1, 8) => self.set_sound_timer(a),
-                (0xF, a, 1, 0xE) => self.add_to_index(a),
-                (0xF, a, 2, 9) => self.set_index_to_character(a),
-                (0xF, a, 3, 3) => self.store_bcd(a),
-                (0xF, a, 5, 5) => self.store_to_index(a),
-                (0xF, a, 6, 5) => self.fill_from_index(a),
-                _ => {},
-            };
-
+            if let Some(reg) = self.wait_on_input {
+                if let Some(key) = self.system.get_input() {
+                    self.regs.set_data(reg, key);
+                    self.wait_on_input = None;
+                }
+            } else {
+                let opcode  = self.read_opcode();
+                match opcode {
+                    (0, 0, 0xE, 0) => self.clear_screen(),
+                    (0, 0, 0xE, 0xE) => self.ret(),
+                    (0, _, _, _) => {}, //RCA program
+                    (1, a, b, c) => self.jump(Self::join_three(a,b,c)),
+                    (2, a, b, c) => self.sub(Self::join_three(a,b,c)),
+                    (3, a, b, c) => self.skip_if(a, Self::join_two(b,c)),
+                    (4, a, b, c) => self.skip_if_not(a, Self::join_two(b,c)),
+                    (5, a, b, 0) => self.skip_if_reg(a, b),
+                    (6, a, b, c) => self.set(a, Self::join_two(b,c)),
+                    (7, a, b, c) => self.add(a, Self::join_two(b,c)),
+                    (8, a, b, 0) => self.set_reg(a, b),
+                    (8, a, b, 1) => self.or_reg(a, b),
+                    (8, a, b, 2) => self.and_reg(a,b),
+                    (8, a, b, 3) => self.xor_reg(a,b),
+                    (8, a, b, 4) => self.add_reg(a,b),
+                    (8, a, b, 5) => self.cmp_reg(a,b),
+                    (8, a, b, 6) => self.shift_right_reg(a,b),
+                    (8, a, b, 7) => self.sub_reg(a,b),
+                    (8, a, b, 0xE) => self.shift_left_reg(a,b),
+                    (9, a, b, 0) => self.skip_if_not_reg(a,b),
+                    (0xA, a, b, c) => self.set_index(Self::join_three(a,b,c)),
+                    (0xB, a, b, c) => self.jump_offset(Self::join_three(a,b,c)),
+                    (0xC, a, b, c) => self.random(a, Self::join_two(b,c)),
+                    (0xD, a, b, c) => self.draw_sprite(a,b,c),
+                    (0xE, a, 9, 0xE) => self.skip_if_key(a),
+                    (0xE, a, 0xA, 1) => self.skip_if_not_key(a),
+                    (0xF, a, 0, 7) => self.set_from_delay_timer(a),
+                    (0xF, a, 0, 0xA) => self.wait_for_key(a),
+                    (0xF, a, 1, 5) => self.set_delay_timer(a),
+                    (0xF, a, 1, 8) => self.set_sound_timer(a),
+                    (0xF, a, 1, 0xE) => self.add_to_index(a),
+                    (0xF, a, 2, 9) => self.set_index_to_character(a),
+                    (0xF, a, 3, 3) => self.store_bcd(a),
+                    (0xF, a, 5, 5) => self.store_to_index(a),
+                    (0xF, a, 6, 5) => self.fill_from_index(a),
+                    _ => {},
+                };
+            }
             draw_countdown -= 1;
             if draw_countdown == 0 {
                 if self.regs.delay_timer != 0 { self.regs.delay_timer -= 1; }
                 if self.regs.sound_timer != 0 { self.regs.sound_timer -= 1; }
-                self.renderer.render(&self.disp.screen);
+                self.system.render(&self.disp.screen);
                 break;
             }
         }
+
+        self.system.is_closed()
     }
 
     fn clear_screen(&mut self) {
@@ -249,10 +259,21 @@ impl<T: Chip8Renderer> Cpu<T> {
         self.regs.set_data(0xF, if flipped { 1 } else { 0 });
     }
 
-    fn skip_if_key(&mut self, _: u8) {
+    fn skip_if_key(&mut self, reg: u8) {
+        if let Some(key) = self.system.get_input() {
+            if key == self.regs.get_data(reg) { 
+                self.regs.address = self.regs.address.wrapping_add(2);
+            }
+        }
     }
 
-    fn skip_if_not_key(&mut self, _: u8) {
+    fn skip_if_not_key(&mut self, reg: u8) {
+        if let Some(key) = self.system.get_input() {
+            if key == self.regs.get_data(reg) { 
+                return;
+            }
+        }
+
         self.regs.address = self.regs.address.wrapping_add(2);
     }
 
@@ -261,7 +282,8 @@ impl<T: Chip8Renderer> Cpu<T> {
         self.regs.set_data(reg, val);
     }
 
-    fn wait_for_key(&mut self, _: u8) {
+    fn wait_for_key(&mut self, reg: u8) {
+        self.wait_on_input = Some(reg);
     }
 
     fn set_delay_timer(&mut self, reg: u8) {
@@ -495,7 +517,7 @@ impl ConsoleRenderer {
     }
 }
 
-impl Chip8Renderer for ConsoleRenderer {
+impl Chip8System for ConsoleRenderer {
     fn render(&mut self, screen: &[u8; 2048]) {
         let mut s = String::from("\x1b[2J\x1b[1;1H");
         for n in 0..2048 {
@@ -512,5 +534,13 @@ impl Chip8Renderer for ConsoleRenderer {
         let _ = handle.flush();
 
         ::std::thread::sleep_ms(160);
+    }
+
+    fn get_input(&mut self) -> Option<u8> {
+        None
+    }
+
+    fn is_closed(&mut self) -> bool {
+        false
     }
 }

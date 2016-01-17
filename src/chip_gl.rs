@@ -15,6 +15,8 @@ pub struct GliumRenderer {
     indicies: Box<glium::index::NoIndices>,
     program: Box<glium::Program>,
     vertex_buffer: Box<glium::VertexBuffer<Vertex>>,
+    closed: bool,
+    pressed_keys: [bool;16],
 }
 
 impl GliumRenderer {
@@ -69,13 +71,48 @@ impl GliumRenderer {
             indicies: Box::new(indicies),
             program: Box::new(program),
             vertex_buffer: Box::new(vertex_buffer),
+            closed: false,
+            pressed_keys: [false;16],
+        }
+    }
 
+    fn process_events(&mut self) {
+        for ev in self.display.poll_events() {
+            match ev {
+                glium::glutin::Event::Closed => self.closed = true,
+                glium::glutin::Event::KeyboardInput(state, x, key_opt) => {
+                    let pressed = state == glium::glutin::ElementState::Pressed;
+                    if let Some(key) = key_opt {
+                        use glium::glutin::VirtualKeyCode;
+                        match key {
+                            VirtualKeyCode::Key1 => self.pressed_keys[1] = pressed,
+                            VirtualKeyCode::Key2 => self.pressed_keys[2] = pressed,
+                            VirtualKeyCode::Key3 => self.pressed_keys[3] = pressed,
+                            VirtualKeyCode::Key4 => self.pressed_keys[0xC] = pressed,
+                            VirtualKeyCode::Q => self.pressed_keys[4] = pressed,
+                            VirtualKeyCode::W => self.pressed_keys[5] = pressed,
+                            VirtualKeyCode::E => self.pressed_keys[6] = pressed,
+                            VirtualKeyCode::R => self.pressed_keys[0xD] = pressed,
+                            VirtualKeyCode::A => self.pressed_keys[7] = pressed,
+                            VirtualKeyCode::S => self.pressed_keys[8] = pressed,
+                            VirtualKeyCode::D => self.pressed_keys[9] = pressed,
+                            VirtualKeyCode::F => self.pressed_keys[0xE] = pressed,
+                            VirtualKeyCode::Z => self.pressed_keys[0xA] = pressed,
+                            VirtualKeyCode::X => self.pressed_keys[0] = pressed,
+                            VirtualKeyCode::C => self.pressed_keys[0xB] = pressed,
+                            VirtualKeyCode::V => self.pressed_keys[0xF] = pressed,
+                            _ => {} 
+                        }
+                    }
+                }, 
+                _ => {}
+            }
         }
     }
 }
 
 
-impl Chip8Renderer for GliumRenderer {
+impl Chip8System for GliumRenderer {
     fn render(&mut self, screen: &[u8; 2048]) {
         use glium::texture::{RawImage2d, ClientFormat, texture2d};
         let mut screen_buf = [0xFF000000u32; 2048];
@@ -84,7 +121,7 @@ impl Chip8Renderer for GliumRenderer {
             if screen[x] != 0 { screen_buf[x] = 0xFFFFFFFFu32; }
         }
 
-        let img = glium::texture::RawImage2d {
+        let img = RawImage2d {
             data: ::std::borrow::Cow::Owned(screen_buf.to_vec()),
             width: 64,
             height: 32,
@@ -102,5 +139,18 @@ impl Chip8Renderer for GliumRenderer {
         target.clear_color(0.0, 0.0, 0.0, 1.0);
         target.draw(&*self.vertex_buffer, &*self.indicies, &*self.program, &uniforms, &Default::default()).unwrap();
         target.finish().unwrap();
+        self.process_events();
+    }
+    
+    fn get_input(&mut self) -> Option<u8> {
+        self.process_events();
+        for x in 0..16u8 {
+            if self.pressed_keys[x as usize] { return Some(x); }
+        }
+        None
+    }
+
+    fn is_closed(&mut self) -> bool {
+        self.closed
     }
 }
