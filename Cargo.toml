@@ -6,3 +6,4 @@ authors = ["Nick Massey <nick.massey@saputo.com>"]
 docopt = "0.6"
 rustc-serialize = "0.3"
 glium = "*"
+rand = "0.3"

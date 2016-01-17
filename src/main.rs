@@ -1,5 +1,6 @@
 extern crate rustc_serialize;
 extern crate docopt;
+extern crate rand;
 
 #[macro_use]
 extern crate glium;
@@ -236,7 +237,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn random(&mut self, reg: u8, value: u8) {
-        self.regs.set_data(reg, 4 ^ value);
+        self.regs.set_data(reg, rand::random::<u8>() & value);
     }
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
