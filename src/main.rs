@@ -241,9 +241,12 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
+        let mut flipped = false;
         for n in 0..rows {
-            self.disp.draw_line(self.mem.read(self.regs.index.wrapping_add(n as u16)), self.regs.get_data(reg_a), self.regs.get_data(reg_b).wrapping_add(n));
+            flipped |= self.disp.draw_line(self.mem.read(self.regs.index.wrapping_add(n as u16)), self.regs.get_data(reg_a), self.regs.get_data(reg_b).wrapping_add(n));
         }
+
+        self.regs.set_data(0xF, if flipped { 1 } else { 0 });
     }
 
     fn skip_if_key(&mut self, _: u8) {
@@ -375,17 +378,21 @@ impl Display {
         }
     }
 
-    fn toggle_pixel(&mut self, pixel: u8,  x: u8, y: u8) {
+    fn toggle_pixel(&mut self, pixel: u8,  x: u8, y: u8) -> bool {
         let real_x = (x & 0x3F) as u16;
         let real_y = (y & 0x1F) as u16;
         let offset = ((real_y * 64) + real_x) as usize;
+        let flipped = self.screen[offset] == 1 && pixel != 0;
         self.screen[offset] = pixel ^ self.screen[offset];
+        flipped
     }
 
-    fn draw_line(&mut self, line: u8, x: u8, y: u8) {
+    fn draw_line(&mut self, line: u8, x: u8, y: u8) -> bool {
+        let mut flipped = false;
         for n in 0..8 {
-            self.toggle_pixel(((line << n) & 0x80) >> 7, x + n, y);
+            flipped |= self.toggle_pixel(((line << n) & 0x80) >> 7, x + n, y);
         }
+        flipped
     }
 }
 
