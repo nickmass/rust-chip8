@@ -1,9 +1,15 @@
 extern crate rustc_serialize;
 extern crate docopt;
 
+#[macro_use]
+extern crate glium;
+
+mod traits;
+use self::traits::*;
+
 use docopt::Docopt;
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Write, Read};
 
 const USAGE: &'static str = "
 rust-chip8
@@ -30,7 +36,7 @@ fn main() {
     let mut f = File::open(args.arg_file).unwrap();
     let mut rom: Vec<u8> = Vec::new();
     let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
-    let mut cpu = Cpu::<Chip8ConsoleRenderer>::new(rom);
+    let mut cpu = Cpu::<GliumRenderer>::new(rom);
     loop {
         cpu.run();
     }
@@ -43,13 +49,16 @@ struct Cpu<T: Chip8Renderer> {
     renderer: T,
 }
 
+mod chipGl;
+use self::chipGl::*;
+
 impl<T: Chip8Renderer> Cpu<T> {
-    fn new(rom: Vec<u8>) -> Cpu<Chip8ConsoleRenderer> {
+    fn new(rom: Vec<u8>) -> Cpu<GliumRenderer> {
         Cpu {
             disp: Display::new(),
             mem: Memory::new_with_rom(rom),
             regs: Registers::new(),
-            renderer: Chip8ConsoleRenderer::new(),
+            renderer: GliumRenderer::new(),
         }
     }
 
@@ -431,25 +440,19 @@ impl Memory {
     }
 }
 
-trait Chip8Renderer {
-    fn render(&mut self, &[u8; 2048]);
-}
+struct ConsoleRenderer;
 
-struct Chip8ConsoleRenderer;
-
-impl Chip8ConsoleRenderer {
-    fn new() -> Chip8ConsoleRenderer {
-        Chip8ConsoleRenderer
+impl ConsoleRenderer {
+    fn new() -> ConsoleRenderer {
+        ConsoleRenderer
     }
 }
 
-use std::io::{self, Write};
-
-impl Chip8Renderer for Chip8ConsoleRenderer {
+impl Chip8Renderer for ConsoleRenderer {
     fn render(&mut self, screen: &[u8; 2048]) {
         let mut s = String::from("\x1b[2J\x1b[1;1H");
         for n in 0..2048 {
-            if n % 64 == 0 {
+            if n % 64 == 0 && n != 0 {
                 s.push_str("\n");
             }
             s.push_str(&format!("{0}", screen[n]));
@@ -461,6 +464,6 @@ impl Chip8Renderer for Chip8ConsoleRenderer {
         let _ = handle.write_all(s.as_bytes());
         let _ = handle.flush();
 
-        ::std::thread::sleep_ms(16);
+        ::std::thread::sleep_ms(160);
     }
 }

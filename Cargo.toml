@@ -5,3 +5,4 @@ authors = ["Nick Massey <nick.massey@saputo.com>"]
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
+glium = "*"
