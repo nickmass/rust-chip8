@@ -33,7 +33,7 @@ fn main() {
         .and_then(|d| d.decode())
         .unwrap_or_else(|e| e.exit());
 
-    let mut f = File::open(args.arg_file).unwrap();
+    let f = File::open(args.arg_file).unwrap();
     let mut rom: Vec<u8> = Vec::new();
     let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
     let mut cpu = Cpu::<GliumRenderer>::new(rom);
@@ -105,10 +105,12 @@ impl<T: Chip8Renderer> Cpu<T> {
                 _ => {},
             };
 
-            draw_countdown = draw_countdown - 1;
+            draw_countdown -= 1;
             if draw_countdown == 0 {
-               self.renderer.render(&self.disp.screen);
-               break;
+                if self.regs.delay_timer != 0 { self.regs.delay_timer -= 1; }
+                if self.regs.sound_timer != 0 { self.regs.sound_timer -= 1; }
+                self.renderer.render(&self.disp.screen);
+                break;
             }
         }
     }
@@ -118,86 +120,110 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn skip_if(&mut self, reg: u8, value: u8) {
-        if self.regs.data[reg as usize] == value {
-            self.regs.address = self.regs.address + 2;
+        if self.regs.get_data(reg) == value {
+            self.regs.address += 2;
         }
     }
 
     fn skip_if_not(&mut self, reg: u8, value: u8) {
-        if self.regs.data[reg as usize] != value {
-            self.regs.address = self.regs.address + 2;
+        if self.regs.get_data(reg) != value {
+            self.regs.address += 2;
         }
     }
 
     fn skip_if_reg(&mut self, reg_a: u8, reg_b: u8) {
-        if self.regs.data[reg_a as usize] == self.regs.data[reg_b as usize] {
-            self.regs.address = self.regs.address + 2;
+        if self.regs.get_data(reg_a) == self.regs.get_data(reg_b) {
+            self.regs.address += 2;
         }
     }
 
     fn set(&mut self, reg: u8, value: u8) {
-        self.regs.data[reg as usize] = value;
+        self.regs.set_data(reg, value);
     }
 
     fn add(&mut self, reg: u8, value: u8) {
-        self.regs.data[reg as usize] = self.regs.data[reg as usize] + value;
+        let reg_val = self.regs.get_data(reg);
+        self.regs.set_data(reg, reg_val + value);
     }
 
     fn set_reg(&mut self, reg_a: u8, reg_b: u8) {
-        self.regs.data[reg_a as usize] = self.regs.data[reg_b as usize];
+        let val = self.regs.get_data(reg_b);
+        self.regs.set_data(reg_a, val);
     }
 
     fn or_reg(&mut self, reg_a: u8, reg_b: u8) {
-        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] | self.regs.data[reg_b as usize];
+        let val_left = self.regs.get_data(reg_a);
+        let val_right = self.regs.get_data(reg_b);
+        self.regs.set_data(reg_a, val_left | val_right);
     }
 
     fn and_reg(&mut self, reg_a: u8, reg_b: u8) {
-        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] & self.regs.data[reg_b as usize];
+        let val_left = self.regs.get_data(reg_a);
+        let val_right = self.regs.get_data(reg_b);
+        self.regs.set_data(reg_a, val_left & val_right);
     }
 
     fn xor_reg(&mut self, reg_a: u8, reg_b: u8) {
-        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] ^ self.regs.data[reg_b as usize];
+        let val_left = self.regs.get_data(reg_a);
+        let val_right = self.regs.get_data(reg_b);
+        self.regs.set_data(reg_a, val_left ^ val_right);
     }
 
-    fn add_reg(&mut self, reg_a: u8, reg_b: u8) {
-        if (reg_a as u16) + (reg_b as u16) > 255 {
-            self.regs.data[0xF] = 1;
+    fn add_reg(&mut self, reg_a: u8, reg_b: u8) {                
+        let val_left = self.regs.get_data(reg_b);
+        let val_right = self.regs.get_data(reg_a);
+        if (val_left as u16) + (val_right as u16) > 255 {
+            self.regs.set_data(0xF, 1);
         } else {
-            self.regs.data[0xF] = 0;
+            self.regs.set_data(0xF, 0);
         }
+        
+        self.regs.set_data(reg_a, val_left + val_right);
     }
 
     fn cmp_reg(&mut self, reg_a: u8, reg_b: u8) {
-        if (reg_a as i16) - (reg_b as i16) < 0 {
-            self.regs.data[0xF] = 1;
+        let val_left = self.regs.get_data(reg_b);
+        let val_right = self.regs.get_data(reg_a);
+        if (val_left as i16) - (val_right as i16) < 0 {
+            self.regs.set_data(0xF, 1);
         } else {
-            self.regs.data[0xF] = 0;
+            self.regs.set_data(0xF, 0);
         }
     }
 
-    fn shift_right_reg(&mut self, reg_a: u8, reg_b: u8) {
-        self.regs.data[0xF] =  self.regs.data[reg_a as usize] & 1;
-        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] >> 1;
+    fn shift_right_reg(&mut self, reg_a: u8, _: u8) {
+        let val = self.regs.get_data(reg_a);
+        self.regs.set_data(0xF, val & 1);
+        self.regs.set_data(reg_a, val >> 1);
     }
 
     fn sub_reg(&mut self, reg_a: u8, reg_b: u8) {
-        
-    }
-
-    fn shift_left_reg(&mut self, reg_a: u8, reg_b: u8) {
-        let carry = self.regs.data[reg_a as usize] & 0x80;
-        if carry != 0 {
-            self.regs.data[0xF] = 1;
+        let val_left = self.regs.get_data(reg_b);
+        let val_right = self.regs.get_data(reg_a);
+        if (val_left as i16) - (val_right as i16) < 0 {
+            self.regs.set_data(0xF, 1);
         } else {
-            self.regs.data[0xF] = 0;
+            self.regs.set_data(0xF, 0);
         }
 
-        self.regs.data[reg_a as usize] = self.regs.data[reg_a as usize] << 1;
+        self.regs.set_data(reg_a, val_left - val_right);
+    }
+
+    fn shift_left_reg(&mut self, reg_a: u8, _: u8) {
+        let val = self.regs.get_data(reg_a);
+        let carry = val & 0x80;
+        if carry != 0 {
+            self.regs.set_data(0xF, 1);
+        } else {
+            self.regs.set_data(0xF, 0);
+        }
+
+        self.regs.set_data(reg_a, val << 1);
     }
 
     fn skip_if_not_reg(&mut self, reg_a: u8, reg_b: u8) {
-        if self.regs.data[reg_a as usize] != self.regs.data[reg_b as usize] {
-            self.regs.address = self.regs.address + 2;
+        if self.regs.get_data(reg_a) != self.regs.get_data(reg_b) {
+            self.regs.address += 2;
         }
     }
 
@@ -206,57 +232,62 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn jump_offset(&mut self, addr: u16) {
-        self.regs.address = self.regs.data[0] as u16 + addr;
+        self.regs.address = self.regs.get_data(0) as u16 + addr;
     }
 
     fn random(&mut self, reg: u8, value: u8) {
-        self.regs.data[reg as usize] = 4 ^ value;
+        self.regs.set_data(reg, 4 ^ value);
     }
 
     fn draw_sprite(&mut self, reg_a: u8, reg_b: u8, rows: u8) {
         for n in 0..rows {
-            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.data[reg_a as usize], self.regs.data[reg_b as usize] + n);
+            self.disp.draw_line(self.mem.read(self.regs.index + n as u16), self.regs.get_data(reg_a), self.regs.get_data(reg_b) + n);
         }
     }
 
-    fn skip_if_key(&mut self, reg: u8) {
+    fn skip_if_key(&mut self, _: u8) {
     }
 
-    fn skip_if_not_key(&mut self, reg: u8) {
+    fn skip_if_not_key(&mut self, _: u8) {
     }
 
     fn set_from_delay_timer(&mut self, reg: u8) {
+        let val = self.regs.delay_timer;
+        self.regs.set_data(reg, val);
     }
 
-    fn wait_for_key(&mut self, reg: u8) {
+    fn wait_for_key(&mut self, _: u8) {
     }
 
     fn set_delay_timer(&mut self, reg: u8) {
+        self.regs.delay_timer = self.regs.get_data(reg);
     }
 
     fn set_sound_timer(&mut self, reg: u8) {
+        self.regs.sound_timer = self.regs.get_data(reg);
     }
 
     fn add_to_index(&mut self, reg: u8) {
-        self.regs.index = self.regs.index + self.regs.data[reg as usize] as u16;
+        self.regs.index = self.regs.index + self.regs.get_data(reg) as u16;
     }
 
     fn set_index_to_character(&mut self, reg: u8) {
-        self.regs.index = self.regs.data[reg as usize] as u16 * 5
+        self.regs.index = self.regs.get_data(reg) as u16 * 5
     }
 
-    fn store_bcd(&mut self, reg: u8) {
+    fn store_bcd(&mut self, _: u8) {
     }
 
     fn store_to_index(&mut self, reg: u8) {
         for n in 0..reg {
-            self.mem.write(self.regs.index + n as u16, self.regs.data[(reg + n) as usize]);
+            self.mem.write(self.regs.index + n as u16, self.regs.get_data(reg + n));
         }
     }
 
     fn fill_from_index(&mut self, reg: u8) {
         for n in 0..reg {
-            self.regs.data[(reg + n) as usize] = self.mem.read(self.regs.index + n as u16);
+            let val = self.mem.read(self.regs.index + n as u16);
+            self.regs.set_data(reg + n, val);
         }
     }
 
@@ -289,7 +320,7 @@ impl<T: Chip8Renderer> Cpu<T> {
 
     fn push(&mut self, value: u8) {
         self.mem.write(self.regs.stack, value);
-        self.regs.stack = self.regs.stack + 1;
+        self.regs.stack += 1;
     }
 
     fn push_addr(&mut self, address: u16) {
@@ -300,7 +331,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn pop(&mut self) -> u8 {
-        self.regs.stack = self.regs.stack - 1;
+        self.regs.stack -= 1;
         self.mem.read(self.regs.stack)
     }
 
@@ -361,6 +392,8 @@ struct Registers {
     address: u16,
     stack: u16,
     index: u16,
+    delay_timer: u8,
+    sound_timer: u8,
 }
 
 impl Registers { 
@@ -370,7 +403,17 @@ impl Registers {
             address: 0x200,
             stack: 0xEA0,
             index: 0,
+            delay_timer: 0,
+            sound_timer: 0,
         }
+    }
+
+    fn get_data(&self, ind: u8) -> u8 {
+        self.data[(ind & 0xF) as usize]
+    }
+
+    fn set_data(&mut self, ind: u8, value: u8) {
+        self.data[(ind & 0xF) as usize] = value;
     }
 }
 
@@ -432,11 +475,6 @@ impl Memory {
     fn write(&mut self, addr: u16, value: u8) {
         let safe_addr = addr & 0xFFF;
         self.bytes[safe_addr as usize] = value;
-    }
-
-    fn write_word(&mut self, addr: u16, value: u16) {
-        self.write(addr, (value & 0xFF) as u8);
-        self.write(addr + 1, ((value >> 8) & 0xFF) as u8);
     }
 }
 
