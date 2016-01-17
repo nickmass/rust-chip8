@@ -50,8 +50,8 @@ struct Cpu<T: Chip8Renderer> {
     renderer: T,
 }
 
-mod chipGl;
-use self::chipGl::*;
+mod chip_gl;
+use self::chip_gl::*;
 
 impl<T: Chip8Renderer> Cpu<T> {
     fn new(rom: Vec<u8>) -> Cpu<GliumRenderer> {
@@ -64,7 +64,7 @@ impl<T: Chip8Renderer> Cpu<T> {
     }
 
     fn run(&mut self) {
-        let mut draw_countdown = 500;
+        let mut draw_countdown = 60000; //No idea
         loop {
             let opcode  = self.read_opcode();
             match opcode {
