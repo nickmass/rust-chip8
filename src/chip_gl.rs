@@ -1,5 +1,4 @@
 use glium;
-use glium::backend::glutin_backend::GlutinFacade;
 use glium::{DisplayBuild, Surface};
 use traits::*;
 
@@ -12,7 +11,7 @@ struct Vertex {
 implement_vertex!(Vertex, position, tex_coords);
 
 pub struct GliumRenderer {
-    display: Box<GlutinFacade>,
+    display: Box<glium::Display>,
     indicies: Box<glium::index::NoIndices>,
     program: Box<glium::Program>,
     vertex_buffer: Box<glium::VertexBuffer<Vertex>>,
@@ -20,7 +19,11 @@ pub struct GliumRenderer {
 
 impl GliumRenderer {
     pub fn new() -> GliumRenderer {
-        let display = glium::glutin::WindowBuilder::new().build_glium().unwrap();
+        let display = glium::glutin::WindowBuilder::new()
+            .with_dimensions(64*8, 32*8)
+            .with_title(format!("Rust Chip8"))
+            .build_glium()
+            .unwrap();
         
         let top_right = Vertex { position: [1.0, 1.0], tex_coords: [1.0, 0.0] };
         let top_left = Vertex { position: [-1.0, 1.0], tex_coords: [0.0, 0.0] };
@@ -71,10 +74,10 @@ impl GliumRenderer {
     }
 }
 
-use glium::texture::{RawImage2d, ClientFormat, texture2d};
 
 impl Chip8Renderer for GliumRenderer {
     fn render(&mut self, screen: &[u8; 2048]) {
+        use glium::texture::{RawImage2d, ClientFormat, texture2d};
         let mut screen_buf = [0xFF000000u32; 2048];
 
         for x in 0..2048 {
