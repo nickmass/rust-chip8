@@ -302,7 +302,16 @@ impl<T: Chip8System> Cpu<T> {
         self.regs.index = self.regs.get_data(reg) as u16 * 5
     }
 
-    fn store_bcd(&mut self, _: u8) {
+    fn store_bcd(&mut self, reg: u8) {
+        let val = self.regs.get_data(reg);
+
+        let hundreds = val / 100;
+        let tens = (val % 100) / 10;
+        let ones = val % 10;
+
+        self.mem.write(self.regs.index, hundreds);
+        self.mem.write(self.regs.index.wrapping_add(1), tens);
+        self.mem.write(self.regs.index.wrapping_add(2), ones);
     }
 
     fn store_to_index(&mut self, reg: u8) {
