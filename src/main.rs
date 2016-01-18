@@ -374,8 +374,8 @@ impl<T: Chip8System> Cpu<T> {
     }
 
     fn pop_addr(&mut self) -> u16 {
-        let x = self.pop() as u16;
         let y = self.pop() as u16;
+        let x = self.pop() as u16;
 
         x | (y << 8)
     }
@@ -423,7 +423,7 @@ impl Display {
     fn draw_line(&mut self, line: u8, x: u8, y: u8) -> bool {
         let mut flipped = false;
         for n in 0..8 {
-            flipped |= self.toggle_pixel(((line << n) & 0x80) >> 7, x + n, y);
+            flipped |= self.toggle_pixel(((line << n) & 0x80) >> 7, x.wrapping_add(n), y);
         }
         flipped
     }
