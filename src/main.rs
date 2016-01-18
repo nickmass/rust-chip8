@@ -196,9 +196,9 @@ impl<T: Chip8System> Cpu<T> {
         let val_left = self.regs.get_data(reg_b);
         let val_right = self.regs.get_data(reg_a);
         if (val_left as i16) - (val_right as i16) < 0 {
-            self.regs.set_data(0xF, 1);
-        } else {
             self.regs.set_data(0xF, 0);
+        } else {
+            self.regs.set_data(0xF, 1);
         }
     }
 
@@ -212,9 +212,9 @@ impl<T: Chip8System> Cpu<T> {
         let val_left = self.regs.get_data(reg_b);
         let val_right = self.regs.get_data(reg_a);
         if (val_left as i16) - (val_right as i16) < 0 {
-            self.regs.set_data(0xF, 1);
-        } else {
             self.regs.set_data(0xF, 0);
+        } else {
+            self.regs.set_data(0xF, 1);
         }
 
         self.regs.set_data(reg_a, val_left.wrapping_sub(val_right));
