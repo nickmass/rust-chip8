@@ -80,7 +80,7 @@ impl GliumRenderer {
         for ev in self.display.poll_events() {
             match ev {
                 glium::glutin::Event::Closed => self.closed = true,
-                glium::glutin::Event::KeyboardInput(state, x, key_opt) => {
+                glium::glutin::Event::KeyboardInput(state, _, key_opt) => {
                     let pressed = state == glium::glutin::ElementState::Pressed;
                     if let Some(key) = key_opt {
                         use glium::glutin::VirtualKeyCode;

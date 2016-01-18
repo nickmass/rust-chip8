@@ -193,13 +193,15 @@ impl<T: Chip8System> Cpu<T> {
     }
 
     fn cmp_reg(&mut self, reg_a: u8, reg_b: u8) {
-        let val_left = self.regs.get_data(reg_b);
-        let val_right = self.regs.get_data(reg_a);
-        if (val_left as i16) - (val_right as i16) < 0 {
-            self.regs.set_data(0xF, 0);
-        } else {
+        let val_left = self.regs.get_data(reg_a);
+        let val_right = self.regs.get_data(reg_b);
+        if val_left > val_right {
             self.regs.set_data(0xF, 1);
+        } else {
+            self.regs.set_data(0xF, 0);
         }
+
+        self.regs.set_data(reg_a, val_left.wrapping_sub(val_right));
     }
 
     fn shift_right_reg(&mut self, reg_a: u8, _: u8) {
@@ -211,10 +213,10 @@ impl<T: Chip8System> Cpu<T> {
     fn sub_reg(&mut self, reg_a: u8, reg_b: u8) {
         let val_left = self.regs.get_data(reg_b);
         let val_right = self.regs.get_data(reg_a);
-        if (val_left as i16) - (val_right as i16) < 0 {
-            self.regs.set_data(0xF, 0);
-        } else {
+        if val_left > val_right {
             self.regs.set_data(0xF, 1);
+        } else {
+            self.regs.set_data(0xF, 0);
         }
 
         self.regs.set_data(reg_a, val_left.wrapping_sub(val_right));
@@ -316,14 +318,14 @@ impl<T: Chip8System> Cpu<T> {
 
     fn store_to_index(&mut self, reg: u8) {
         for n in 0..reg {
-            self.mem.write(self.regs.index.wrapping_add(n as u16), self.regs.get_data(reg.wrapping_add(n)));
+            self.mem.write(self.regs.index.wrapping_add(n as u16), self.regs.get_data(n));
         }
     }
 
     fn fill_from_index(&mut self, reg: u8) {
         for n in 0..reg {
             let val = self.mem.read(self.regs.index.wrapping_add(n as u16));
-            self.regs.set_data(reg.wrapping_add(n), val);
+            self.regs.set_data(n, val);
         }
     }
 
