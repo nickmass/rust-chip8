@@ -12,6 +12,10 @@ use docopt::Docopt;
 use std::fs::File;
 use std::io::{self, Write, Read};
 
+mod chip_gl;
+use self::chip_gl::GliumRenderer;
+
+
 const USAGE: &'static str = "
 rust-chip8
 
@@ -37,7 +41,8 @@ fn main() {
     let f = File::open(args.arg_file).unwrap();
     let mut rom: Vec<u8> = Vec::new();
     let _ = f.take(0x1000 - 0x200).read_to_end(&mut rom).unwrap();
-    let mut cpu = Cpu::<GliumRenderer>::new(rom);
+    let system = GliumRenderer::new();
+    let mut cpu = Cpu::new(rom, system);
     loop {
         if cpu.run() { break; }
     }
@@ -51,16 +56,13 @@ struct Cpu<T: Chip8System> {
     wait_on_input: Option<u8>,
 }
 
-mod chip_gl;
-use self::chip_gl::*;
-
 impl<T: Chip8System> Cpu<T> {
-    fn new(rom: Vec<u8>) -> Cpu<GliumRenderer> {
+    fn new(rom: Vec<u8>, system: T) -> Cpu<T> {
         Cpu {
             disp: Display::new(),
             mem: Memory::new_with_rom(rom),
             regs: Registers::new(),
-            system: GliumRenderer::new(),
+            system: system,
             wait_on_input: None,
         }
     }
