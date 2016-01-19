@@ -71,8 +71,8 @@ impl<T: Chip8System> Cpu<T> {
         let mut draw_countdown = 60000; //No idea
         loop {
             if let Some(reg) = self.wait_on_input {
-                if let Some(key) = self.system.get_input() {
-                    self.regs.set_data(reg, key);
+                if let Some(key) = self.system.get_input().first() {
+                    self.regs.set_data(reg, *key);
                     self.wait_on_input = None;
                 }
             } else {
@@ -264,21 +264,17 @@ impl<T: Chip8System> Cpu<T> {
     }
 
     fn skip_if_key(&mut self, reg: u8) {
-        if let Some(key) = self.system.get_input() {
-            if key == self.regs.get_data(reg) { 
-                self.regs.address = self.regs.address.wrapping_add(2);
-            }
+        let key = self.regs.get_data(reg);
+        if self.system.get_input().contains(&key) {
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
     }
 
     fn skip_if_not_key(&mut self, reg: u8) {
-        if let Some(key) = self.system.get_input() {
-            if key == self.regs.get_data(reg) { 
-                return;
-            }
+        let key = self.regs.get_data(reg);
+        if !self.system.get_input().contains(&key) {
+            self.regs.address = self.regs.address.wrapping_add(2);
         }
-
-        self.regs.address = self.regs.address.wrapping_add(2);
     }
 
     fn set_from_delay_timer(&mut self, reg: u8) {
@@ -549,8 +545,8 @@ impl Chip8System for ConsoleRenderer {
         ::std::thread::sleep_ms(160);
     }
 
-    fn get_input(&mut self) -> Option<u8> {
-        None
+    fn get_input(&mut self) -> Vec<u8> {
+        Vec::new()
     }
 
     fn is_closed(&mut self) -> bool {

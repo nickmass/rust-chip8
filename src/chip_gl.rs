@@ -142,12 +142,13 @@ impl Chip8System for GliumRenderer {
         self.process_events();
     }
     
-    fn get_input(&mut self) -> Option<u8> {
+    fn get_input(&mut self) -> Vec<u8> {
         self.process_events();
+        let mut key_vec = Vec::new();
         for x in 0..16u8 {
-            if self.pressed_keys[x as usize] { return Some(x); }
+            if self.pressed_keys[x as usize] { key_vec.push(x); }
         }
-        None
+        key_vec 
     }
 
     fn is_closed(&mut self) -> bool {
